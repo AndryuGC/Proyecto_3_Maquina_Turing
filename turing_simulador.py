@@ -48,6 +48,7 @@ class TuringMachine:
             self.tape.append(BLANK)
 
     def step(self) -> Tuple[str, str, str]:
+        """Ejecuta un paso de la máquina."""
         if self.halted:
             raise RuntimeError("La máquina ya está detenida.")
 
@@ -55,6 +56,7 @@ class TuringMachine:
         current_symbol = self.tape[self.head]
         key = (self.state, current_symbol)
 
+        # Si no hay transición definida: decidir según el estado actual
         if key not in self.transitions:
             if self.state in self.accept_states:
                 self.halted = True
@@ -64,25 +66,29 @@ class TuringMachine:
                 self.result = "REJECT"
             return (current_symbol, "S", self.state)
 
+        # Ejecutar transición
         write, move, next_state = self.transitions[key]
 
         # Escribir
         self.tape[self.head] = write
 
-        # Mover
+        # Mover cabeza
         if move == "L":
             self.head -= 1
         elif move == "R":
             self.head += 1
-        # "S" = sin movimiento
+        # "S" -> sin movimiento
 
         self.ensure_cell(self.head)
 
         # Cambiar estado
         self.state = next_state
 
-        # Halt por rechazo explícito
-        if self.state in self.reject_states:
+        # Verificar si es estado de aceptación o rechazo
+        if self.state in self.accept_states:
+            self.halted = True
+            self.result = "ACCEPT"
+        elif self.state in self.reject_states:
             self.halted = True
             self.result = "REJECT"
 
@@ -94,11 +100,15 @@ class TuringMachine:
 def build_right_moving_tm_from_dfa(name: str, alphabet: Set[str], dfa_states: Set[str],
                                    start: str, accepts: Set[str],
                                    delta: Dict[Tuple[str, str], str]) -> TuringMachine:
+    """
+    Construye una TM que simula un DFA moviéndose solo a la derecha.
+    Al llegar a BLANCO, pasa a HALT_A o HALT_R según estado de aceptación.
+    """
     tm_states = set(dfa_states) | {"HALT_A", "HALT_R"}
     tape_alphabet = set(alphabet) | {BLANK}
-    transitions = {}
+    transitions: Dict[Tuple[str, str], Tuple[str, str, str]] = {}
 
-    # Transiciones normales: no escriben algo distinto, solo mueven a la derecha
+    # Transiciones del DFA -> TM
     for (q, a), q2 in delta.items():
         transitions[(q, a)] = (a, "R", q2)
 
@@ -109,7 +119,7 @@ def build_right_moving_tm_from_dfa(name: str, alphabet: Set[str], dfa_states: Se
         else:
             transitions[(q, BLANK)] = (BLANK, "S", "HALT_R")
 
-    # Estados de halt
+    # Estados de halt (se quedan en sí mismos)
     transitions[("HALT_A", BLANK)] = (BLANK, "S", "HALT_A")
     transitions[("HALT_R", BLANK)] = (BLANK, "S", "HALT_R")
 
@@ -125,6 +135,7 @@ def build_right_moving_tm_from_dfa(name: str, alphabet: Set[str], dfa_states: Se
 
 
 def demo_tm_ends_with_abb() -> TuringMachine:
+    # (a|b)*abb
     Σ = {"a", "b"}
     q0, q1, q2, q3 = "q0", "q1", "q2", "q3"
     dfa_states = {q0, q1, q2, q3}
@@ -139,6 +150,7 @@ def demo_tm_ends_with_abb() -> TuringMachine:
 
 
 def demo_tm_0star1star() -> TuringMachine:
+    # 0*1*
     Σ = {"0", "1"}
     q0, q1, qdead = "q0", "q1", "qdead"
     dfa_states = {q0, q1, qdead}
@@ -152,6 +164,7 @@ def demo_tm_0star1star() -> TuringMachine:
 
 
 def demo_tm_ab_star() -> TuringMachine:
+    # (ab)*
     Σ = {"a", "b"}
     even, a_seen, dead = "even", "a_seen", "dead"
     dfa_states = {even, a_seen, dead}
@@ -165,6 +178,7 @@ def demo_tm_ab_star() -> TuringMachine:
 
 
 def demo_tm_1_01_star_0() -> TuringMachine:
+    # 1(01)*0
     Σ = {"0", "1"}
     q0, q1, q2, dead = "q0", "q1", "q2", "dead"
     dfa_states = {q0, q1, q2, dead}
@@ -179,6 +193,7 @@ def demo_tm_1_01_star_0() -> TuringMachine:
 
 
 def demo_tm_contains_a() -> TuringMachine:
+    # (a+b)*a(a+b)*  -> contiene al menos una 'a'
     Σ = {"a", "b"}
     no_a, yes_a = "no_a", "yes_a"
     dfa_states = {no_a, yes_a}
@@ -267,11 +282,11 @@ class App(tk.Tk):
         self.combo_demo.pack(side="left")
         self.combo_demo.bind("<<ComboboxSelected>>", self.on_change_demo)
 
-        # Estado (SIEMPRE visible)
+        # Estado
         self.lbl_state = ttk.Label(root, text="Estado: —", style="State.TLabel")
         self.lbl_state.pack(anchor="w", pady=(2, 6))
 
-        # Cinta
+        # Cinta centrada
         self.canvas = tk.Canvas(
             root,
             height=190,
@@ -299,11 +314,11 @@ class App(tk.Tk):
                                      orient="horizontal", length=220)
         self.scale_speed.pack(side="left")
 
-        # Resultado (SIEMPRE visible)
+        # Resultado
         self.lbl_result = ttk.Label(root, text="Resultado: —", style="Result.TLabel")
         self.lbl_result.pack(anchor="w", pady=(0, 8))
 
-        # Sección Regex
+        # Expresiones Regulares
         regex_frame = ttk.LabelFrame(root, text="Expresiones Regulares — Casos de prueba del simulador")
         regex_frame.pack(fill="both", expand=True, pady=(4, 0))
 
@@ -341,7 +356,7 @@ class App(tk.Tk):
 
         ttk.Label(
             regex_frame,
-            text="Nota: Estas expresiones regulares funcionan como casos de prueba para validar "
+            text="Estas expresiones regulares se utilizan como casos de prueba para validar "
                  "el comportamiento del simulador de Máquina de Turing.",
             wraplength=1150
         ).pack(anchor="w", padx=10, pady=(0, 8))
@@ -352,15 +367,19 @@ class App(tk.Tk):
 
         cell_w = 40
         cell_h = 50
-        margin = 20
 
         width = self.canvas.winfo_width() or 1100
-        visible_cells = max(10, (width - 2 * margin) // cell_w)
-        half = visible_cells // 2
 
         head = self.tm.head
+        # mostramos un rango fijo alrededor del cabezal
+        visible_cells = max(10, (width // cell_w) - 2)
+        half = visible_cells // 2
         left_idx = max(0, head - half)
         right_idx = min(len(self.tm.tape) - 1, head + half)
+
+        num_cells = right_idx - left_idx + 1
+        total_width = num_cells * cell_w
+        margin = max(20, (width - total_width) // 2)
 
         x = margin
         y = 45
@@ -403,7 +422,7 @@ class App(tk.Tk):
                 fill="#2563eb", outline="#2563eb"
             )
 
-        # Actualizar textos
+        # Actualizar etiquetas
         self.lbl_state.config(text=f"Estado: {self.tm.state}")
         res = self.tm.result or "—"
         self.lbl_result.config(text=f"Resultado: {res}")
@@ -434,9 +453,9 @@ class App(tk.Tk):
             return
         try:
             self.tm.step()
-        except RuntimeError as e:
-            messagebox.showerror("Error", str(e))
-            return
+        except RuntimeError:
+            # Si ya está detenida, solo refrescar
+            pass
         self._draw_tape()
         self.update_idletasks()
 
@@ -467,8 +486,8 @@ class App(tk.Tk):
         test_str = self.entry_regex_test.get()
         try:
             ok = re.fullmatch(pattern, test_str) is not None
-        except re.error as e:
-            messagebox.showerror("Regex inválida", str(e))
+        except re.error:
+            messagebox.showerror("Error", "La expresión regular seleccionada es inválida.")
             return
 
         msg = "ACEPTADA" if ok else "RECHAZADA"
