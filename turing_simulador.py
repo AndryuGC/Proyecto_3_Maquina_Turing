@@ -1,12 +1,3 @@
-# turing_simulator.py
-# -*- coding: utf-8 -*-
-"""
-Simulador visual de Máquina de Turing (versión educativa) + Probador de Expresiones Regulares
-Autor: Julio Hernández (1105824) – Maquina de Turing
-Requisitos: Python 3.x (Tkinter incluido en Windows/macOS; en Linux instalar: sudo apt-get install python3-tk)
-Ejecución: python turing_simulator.py
-"""
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import re
@@ -16,11 +7,6 @@ BLANK = "_"  # Símbolo de blanco en la cinta
 
 
 class TuringMachine:
-    """
-    Máquina de Turing determinista minimalista.
-    Transiciones: dict[(estado, símbolo_lectura)] = (símbolo_escritura, movimiento, siguiente_estado)
-    movimiento en {"L","R","S"}  (Left/Right/Stay)
-    """
     def __init__(self, states: Set[str], input_alphabet: Set[str], tape_alphabet: Set[str],
                  transitions: Dict[Tuple[str, str], Tuple[str, str, str]],
                  start_state: str, accept_states: Set[str], reject_states: Set[str] = None):
@@ -94,16 +80,10 @@ class TuringMachine:
 
         return (write, move, next_state)
 
-
-# ---------- DEMOS: DFA envueltos como TM derecha-solo ----------
-
 def build_right_moving_tm_from_dfa(name: str, alphabet: Set[str], dfa_states: Set[str],
                                    start: str, accepts: Set[str],
                                    delta: Dict[Tuple[str, str], str]) -> TuringMachine:
-    """
-    Construye una TM que simula un DFA moviéndose solo a la derecha.
-    Al llegar a BLANCO, pasa a HALT_A o HALT_R según estado de aceptación.
-    """
+
     tm_states = set(dfa_states) | {"HALT_A", "HALT_R"}
     tape_alphabet = set(alphabet) | {BLANK}
     transitions: Dict[Tuple[str, str], Tuple[str, str, str]] = {}
